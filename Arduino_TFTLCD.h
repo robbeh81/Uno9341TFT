@@ -17,6 +17,11 @@
     // This will be slow
     #include "Leonardo_TFT.h"
     #define SAVE_SPACE
+#elif defined(__AVR_ATmega2560__)
+    // Using Mega2560. Import Mega pin definitions. 
+    // Use macro expansions aggressively
+    #include "Mega_TFT.h"
+    //#define SAVE_SPACE
 #else 
     // Using Uno. This will be fast. Import Uno pin definitions.
     // Use macro expansions aggressively
@@ -83,6 +88,7 @@ class Arduino_TFTLCD : public Arduino_GFX {
   
   // System configuration
   void     begin();
+  void     setRotation(uint8_t x);
   void     setRegisters8(uint8_t *ptr, uint8_t n);
   void     setRegisters16(uint16_t *ptr, uint8_t n);
   void     set_low_color_mode(uint8_t ison);
@@ -103,6 +109,8 @@ class Arduino_TFTLCD : public Arduino_GFX {
   void     fastFillScreen(uint8_t color);
   void     fastXORFlood(uint8_t mask, uint8_t length);
   void     fastXORRect(uint8_t x, uint16_t y, uint8_t w, uint16_t h, uint8_t mask);
+  
+  uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 
  private:
   void     colorPixel(uint16_t y, uint16_t permuted_color);

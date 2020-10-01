@@ -36,8 +36,8 @@
     void STOP_READING() {
         _STOP_READING();
     }
-    void SET_XY_RANGE(uint8_t x0,uint8_t x1,uint16_t y0) {
-        _SET_XY_RANGE(x0,x1,y0);
+    void SET_XY_RANGE(uint8_t x0,uint8_t x1,uint16_t y0,uint16_t y1) {
+        _SET_XY_RANGE(x0,x1,y0,y1);
     }
     void SET_XY_LOCATION(uint8_t x,uint16_t y) {
         _SET_XY_LOCATION(x,y);
@@ -77,7 +77,7 @@ Arduino_TFTLCD::Arduino_TFTLCD(void) : Arduino_GFX(TFTWIDTH, TFTHEIGHT) {
 // Initialization common to both shield & breakout configs
 void Arduino_TFTLCD::init(void) {
     setWriteDir(); // Set up LCD data port(s) for WRITE operations
-    rotation  = 0;
+    rotation  = 1;
     cursor_y  = cursor_x = 0;
     textsize  = 1;
     textcolor = 0xFFFF;
@@ -135,6 +135,52 @@ void Arduino_TFTLCD::begin() {
             }
         }
     }
+}
+
+void Arduino_TFTLCD::setRotation(uint8_t x) {
+
+	rotation = (x & 3);
+	switch (rotation) {
+	case 0:
+	case 2:
+		_width = WIDTH;
+		_height = HEIGHT;
+		break;
+	case 1:
+	case 3:
+		_width = HEIGHT;
+		_height = WIDTH;
+		break;
+	}
+
+	// perform hardware-specific rotation operations...
+
+	CS_ACTIVE;
+
+	uint16_t t = 0;
+
+	switch (rotation) {
+		case 2:
+		t = ILI9341_MADCTL_MX | ILI9341_MADCTL_BGR;
+		break;
+    case 3:
+		t = ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR;
+		break;
+    case 0:
+		t = ILI9341_MADCTL_MY | ILI9341_MADCTL_BGR;
+		break;
+    case 1:
+		t = ILI9341_MADCTL_MX | ILI9341_MADCTL_MY | ILI9341_MADCTL_MV |
+          ILI9341_MADCTL_BGR;
+      break;
+    }
+	
+	CD_COMMAND;                                                                
+    write8(ILI9341_MADCTL);                                                                 
+    CD_DATA;                                                                   
+    write8(t); 
+	SET_WINDOW(0,0,_width - 1, _height - 1);
+
 }
 
 // Control the low color mode
@@ -274,65 +320,66 @@ void Arduino_TFTLCD::drawFastVLine(int16_t x, int16_t y, int16_t length, uint16_
 // or are at the end of the line. We then draw the pixel data.
 // We use the continue read data to pick up where we left off.
 void Arduino_TFTLCD::drawFastHLine(int16_t x, int16_t y, int16_t length, uint16_t color){
-    if (length<1) return;
-    #ifdef DO_CLIP
-        int16_t x2 = x+length-1;
-        if(length<=0||y<0||y>=_height||x>=_width||x2<0) return;
-        if(x<0) {length+=x; x=0;}
-        if(x2>=_width) {x2=_width-1; length=x2-x+1;}
-    #endif
-    uint8_t line_flag = FRAME_ID_FLAG8*(y&1);
-    uint8_t permuted_mask_test = BIT_TO_PORT_PERMUTATION(mask_flag^line_flag);
-    uint8_t permuted_background_mask = BIT_TO_PORT_PERMUTATION( (background_color>>8) & QUICK_COLOR_MASK );
-    if (!do_masking) {
-        color &= FRAME_ID_MASK16;
-        color |= (uint16_t)(mask_flag^line_flag)<< 8;
-    }
-    color >>= 8;
-    SET_Y_LOCATION(y);
-    if (do_masking || do_overdraw) {
-        uint8_t in_segment=0;
-        uint8_t start=x;
-        uint8_t stop =x+length;
-        uint8_t i=x;
-        while (i<stop) {
-            SET_X_LOCATION(i);
-            START_READING();
-            while (i<stop) {
-                uint8_t read = PERMUTED_QUICK_READ;
-                uint8_t is_masked = (read&PERMUTED_QUICK_COLOR_MASK)!=permuted_background_mask
-                                 && (read&PERMUTED_FRAME_ID_FLAG8)==permuted_mask_test;
-                SEND_DATA; 
-                READY_READ;
-                SEND_DATA; 
-                if (is_masked) {
-                    if (in_segment) {
-                        STOP_READING();
-                        SET_X_LOCATION(start);
-                        fastFlood(color,i-start);
-                        in_segment=0;
-                        start=i;
-                        i++;
-                        break;
-                    }
-                }
-                else if (!in_segment) {
-                    start = i;
-                    in_segment = 1;
-                }     
-                READY_READ;
-                i++;
-            }
-        }
-        STOP_READING();
-        if (in_segment) {
-            SET_X_LOCATION(start);
-            fastFlood(color,i-start);
-        }
-    } else {
-        SET_X_LOCATION(x);
-        fastFlood(color,length);
-    }
+    // if (length<1) return;
+    // #ifdef DO_CLIP
+        // int16_t x2 = x+length-1;
+        // if(length<=0||y<0||y>=_height||x>=_width||x2<0) return;
+        // if(x<0) {length+=x; x=0;}
+        // if(x2>=_width) {x2=_width-1; length=x2-x+1;}
+    // #endif
+    // uint8_t line_flag = FRAME_ID_FLAG8*(y&1);
+    // uint8_t permuted_mask_test = BIT_TO_PORT_PERMUTATION(mask_flag^line_flag);
+    // uint8_t permuted_background_mask = BIT_TO_PORT_PERMUTATION( (background_color>>8) & QUICK_COLOR_MASK );
+    // if (!do_masking) {
+        // color &= FRAME_ID_MASK16;
+        // color |= (uint16_t)(mask_flag^line_flag)<< 8;
+    // }
+    // color >>= 8;
+    // SET_Y_LOCATION(y);
+    // if (do_masking || do_overdraw) {
+        // uint8_t in_segment=0;
+        // uint8_t start=x;
+        // uint8_t stop =x+length;
+        // uint8_t i=x;
+        // while (i<stop) {
+            // SET_X_LOCATION(i);
+            // START_READING();
+            // while (i<stop) {
+                // uint8_t read = PERMUTED_QUICK_READ;
+                // uint8_t is_masked = (read&PERMUTED_QUICK_COLOR_MASK)!=permuted_background_mask
+                                 // && (read&PERMUTED_FRAME_ID_FLAG8)==permuted_mask_test;
+                // SEND_DATA; 
+                // READY_READ;
+                // SEND_DATA; 
+                // if (is_masked) {
+                    // if (in_segment) {
+                        // STOP_READING();
+                        // SET_X_LOCATION(start);
+                        // fastFlood(color,i-start);
+                        // in_segment=0;
+                        // start=i;
+                        // i++;
+                        // break;
+                    // }
+                // }
+                // else if (!in_segment) {
+                    // start = i;
+                    // in_segment = 1;
+                // }     
+                // READY_READ;
+                // i++;
+            // }
+        // }
+        // STOP_READING();
+        // if (in_segment) {
+            // SET_X_LOCATION(start);
+            // fastFlood(color,i-start);
+        // }
+    // } else {
+        // SET_X_LOCATION(x);
+        // fastFlood(color,length);
+    // }
+	drawLine(x, y, x+length-1, y, color);
 }
 
 
@@ -393,6 +440,8 @@ void     Arduino_TFTLCD::flip_mask()    {mask_flag  ^= FRAME_ID_FLAG8;}
 uint16_t Arduino_TFTLCD::readPixel(int16_t x, int16_t y) {
     return 0;
 }
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -557,6 +606,10 @@ void Arduino_TFTLCD::fastFillTriangle(
         fastestHLine(a, y, b-a, color);
     }
 #endif
+}
+
+uint16_t Arduino_TFTLCD::color565(uint8_t r, uint8_t g, uint8_t b) {
+  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
 
 
