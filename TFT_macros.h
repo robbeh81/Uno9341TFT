@@ -139,6 +139,7 @@
 //////////////////////////////////////////////////////////////////////////
 // Configure drawing region
 
+
 #define _ZERO_XY() {\
     COMMAND(SET_COLUMN_ADDRESS_WINDOW);\
     WRITE_BUS(0);\
@@ -154,7 +155,7 @@
 // Because x in 0..239, top byte is always 0
 #define _SET_X_LOCATION(x) {\
     COMMAND(SET_COLUMN_ADDRESS_WINDOW);\
-    SEND_PAIR(0,x);\
+    SEND_PAIR((x)>>8,x);\
 }
 
 // Set the Y location
@@ -172,8 +173,15 @@
 // Set X range
 #define SET_X_RANGE(x1,x2) {\
     COMMAND(SET_COLUMN_ADDRESS_WINDOW);\
-    SEND_PAIR(0,(x1));\
-    SEND_PAIR(0,(x2));\
+    SEND_PAIR((x1)>>8,(x1));\
+    SEND_PAIR((x2)>>8,(x2));\
+}
+
+// Set Y range
+#define SET_Y_RANGE(y1,y2) {\
+    COMMAND(SET_ROW_ADDRESS_WINDOW);\
+    SEND_PAIR((y1)>>8,(y1));\
+    SEND_PAIR((y2)>>8,(y2));\
 }
 
 // Set X range and Y location
@@ -182,15 +190,9 @@
     SET_Y_LOCATION(y);\
 }
 
-// Sets X range to (0,239)
+// Sets X range to (0,_width)
 #define _RESET_X_RANGE() {\
-    COMMAND(SET_COLUMN_ADDRESS_WINDOW);\
-    WRITE_BUS(0);\
-    CLOCK_DATA;\
-    CLOCK_DATA;\
-    CLOCK_DATA;\
-    WRITE_BUS(239);\
-    CLOCK_DATA;\
+	SET_X_RANGE(0,_width);\
 }
 
 /*
@@ -202,7 +204,8 @@ at the initialization value of 319. There is no reason to ever change this
 register. 
 */
 #define SET_WINDOW(x1,y1,x2,y2) {\
-    SET_XY_RANGE(x1,x2,y1);\
+	SET_X_RANGE(x1,x2);\
+	SET_Y_RANGE(y1,y2);\
 }
 
 /*
